@@ -3,7 +3,7 @@ import numpy as np
 from keys import openai_key
 
 MEMORY_SYSTEM_PROMPT = """You are a helpful assistant with access to previous conversation history. Use the provided context to give natural, conversational responses that incorporate relevant information from past discussions. Maintain a consistent and friendly tone while seamlessly integrating historical context into your responses. The content has Context from previous conversations 'context' and the specific user quesiton 'query'."""
-SIMILARITY_THRESHOLD = 0.6
+SIMILARITY_THRESHOLD = 0.8
 
 class OpenAIInterface:
     def __init__(self, api_key: str = openai_key):
@@ -29,29 +29,21 @@ class OpenAIInterface:
 
     def generate_response(self, query: str, context: str,) -> str:
         """Generate a response using relevant conversation pages as context."""
-        try:
-            messages = [
-                {
-                    "role": "system", 
-                    "content": MEMORY_SYSTEM_PROMPT
-                    },
-                {
-                    "role": "user",
-                    "content": f"context: {context}\n\nquery: {query}"
-                    }
-            ]
-            
-            response = openai.ChatCompletion.create(
-                model=self.chat_model,
-                messages=messages,
-                temperature=0.7,
-                max_tokens=1000
-            )
 
-            
-            return response.choices[0].message.content
-        except Exception as e:
-            raise Exception(f"Failed to generate response: {str(e)}")
+        prompt = f"""Text: {context}
+
+        Question: {query}
+
+        Please answer the question based only on the provided text."""
+        response = openai.ChatCompletion.create(
+            model=self.chat_model,
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
+        )
+        
+        return response.choices[0].message.content
 
     def is_similar(self, vec1: list[float], vec2: list[float], threshold: float=SIMILARITY_THRESHOLD) -> bool:
         array1, array2 = np.array(vec1), np.array(vec2)

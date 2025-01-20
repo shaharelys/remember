@@ -1,10 +1,9 @@
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
-from requests.auth import HTTPBasicAuth
 from llm_interface import OpenAIInterface
 from db_interface import DatabaseInterface
 from twilio.rest import Client
-import json
+
 from keys import TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, openai_key
 
 import openai
@@ -67,24 +66,24 @@ def webhook():
     response = MessagingResponse()
 
     # Check for command prefixes
-    if message.lower().startswith("d "):
+    if message.lower().startswith("d ") or message.lower().startswith("d\n"):
         # Save data to DB
         embeddings = illm.generate_embedding(message)
         text_to_save = message[2:].strip()
         db.save_message(from_number, text_to_save, embeddings)
-        response.message("Added this message to my DB")
+        response.message("Added this message to my knowledge base")
     
-    elif message.lower().startswith("a "):
+    elif message.lower().startswith("a ") or message.lower().startswith("a\n"):
         # Ask question about saved data
         question = message[2:].strip()
         response.message(MainFoos.ask(from_number, question))
     
-    elif message.lower().startswith("s "):
+    elif message.lower().startswith("s ") or message.lower().startswith("s\n"):
         # Summarize text without saving data
         text_to_summarize = message[2:].strip()
         response.message(MainFoos.summarize(text_to_summarize))
     
-    elif message.lower().startswith("r "):
+    elif message.lower().startswith("r ") or message.lower().startswith("r\n"):
         # 4. Check grammar and rephrase
         text_to_rephrase = message[2:].strip()
         response.message(illm.rephrase_text(text_to_rephrase))
@@ -92,10 +91,11 @@ def webhook():
     else:
         response_message = (
             "Please start the conversation with one of the following commands:\n"
-            "- `d: <your message>` to save data to the DB\n"
-            "- `a: <your question>` to ask a question about saved data\n"
-            "- `s: <your text>` to summarize text without saving it\n"
-            "- `r: <your text>` to rephrase the text for clarity or grammar correction"
+            "- `d <your message>` to save data to the DB\n"
+            "- `a <your question>` to ask a question about saved data\n"
+            "- `s <your text>` to summarize text without saving it\n"
+            "- `r <your text>` to rephrase the text for clarity or grammar correction\n\n"
+            "Example: `d This is some simple line to save into my knowledge!`"
         )
         response.message(response_message)        
     
