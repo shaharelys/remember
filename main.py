@@ -56,7 +56,6 @@ class MainFoos:
     @staticmethod
     def summarize(text: str) -> str:
         """Summarize text without saving to the database."""
-        illm = OpenAIInterface()
         return illm.generate_summary(text)
 
 
@@ -65,37 +64,31 @@ def webhook():
     # Get the incoming message from WhatsApp
     message = request.form.get("Body")
     from_number = request.form.get("From")
+    response = MessagingResponse()
 
     # Check for command prefixes
     if message.lower().startswith("d "):
         # Save data to DB
-        illm = OpenAIInterface()
         embeddings = illm.generate_embedding(message)
         text_to_save = message[2:].strip()
         db.save_message(from_number, text_to_save, embeddings)
-        return str("Added this message to my DB")
+        response.message("Added this message to my DB")
+    
     elif message.lower().startswith("a "):
         # Ask question about saved data
         question = message[2:].strip()
-        response_message = MainFoos.ask(from_number, question)
-        response = MessagingResponse()
-        response.message(response_message)
-        return str(response)
+        response.message(MainFoos.ask(from_number, question))
+    
     elif message.lower().startswith("s "):
         # Summarize text without saving data
-        text_to_summarize = message[10:].strip()  # Remove "summarize:" prefix
-        response_message = MainFoos.summarize(text_to_summarize)
-        response = MessagingResponse()
-        response.message(response_message)
-        return str(response)
+        text_to_summarize = message[2:].strip()
+        response.message(MainFoos.summarize(text_to_summarize))
+    
     elif message.lower().startswith("r "):
         # 4. Check grammar and rephrase
-        text_to_rephrase = message[2:].strip()  # Remove "rephrase:" prefix
-        illm = OpenAIInterface()
-        response_message = illm.rephrase_text(text_to_rephrase)
-        response = MessagingResponse()
-        response.message(response_message)
-        return str(response)
+        text_to_rephrase = message[2:].strip()
+        response.message(illm.rephrase_text(text_to_rephrase))
+    
     else:
         response_message = (
             "Please start the conversation with one of the following commands:\n"
@@ -104,12 +97,9 @@ def webhook():
             "- `s: <your text>` to summarize text without saving it\n"
             "- `r: <your text>` to rephrase the text for clarity or grammar correction"
         )
-
-        # Prepare response for WhatsApp
-        response = MessagingResponse()
-        response.message(response_message)
-        
-        return str(response)
+        response.message(response_message)        
+    
+    return str(response)
 
 
 if __name__ == "__main__":
