@@ -1,6 +1,5 @@
 import openai
 import numpy as np
-from db_interface import mock as db
 from keys import openai_key
 
 MEMORY_SYSTEM_PROMPT = """You are a helpful assistant with access to previous conversation history. Use the provided context to give natural, conversational responses that incorporate relevant information from past discussions. Maintain a consistent and friendly tone while seamlessly integrating historical context into your responses. The content has Context from previous conversations 'context' and the specific user quesiton 'query'."""
@@ -92,15 +91,3 @@ class OpenAIInterface:
         except Exception as e:
             print(f"Error rephrasing text: {e}")
             return None
-
-
-if __name__ == "__main__":    
-    
-    llm = OpenAIInterface()
-    test_query = "I want to ask about the idea I had about dolphins and jazz."
-    test_embeddings = llm.generate_embedding(test_query)
-    for i, page in db.items():
-        page_embeddings = page["embeddings"]
-        print(f"Page {i}:\n")
-        print(f"is_similar: {llm.is_similar(test_embeddings, page_embeddings)}")
-        print("\n\n\n")
