@@ -29,7 +29,7 @@ db_config = {
 
 db = DatabaseInterface(db_config['database'])
 
-illm = OpenAIInterface()
+illm = OpenAIInterface(api_key=OPENAI_KEY)
 
 class MainFoos:
     @classmethod
