@@ -75,6 +75,14 @@ def get_all_message():
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
+    OPTIONS = (
+        "1. Save to DB\n"
+        "2. Ask a question\n"
+        "3. Summarize\n"
+        "4. Rephrase\n"
+        "5. Abort"
+    )
+
     message = request.form.get("Body")
     from_number = request.form.get("From")
     response = MessagingResponse()
@@ -86,26 +94,25 @@ def webhook():
                 embeddings = illm.generate_embedding(context['message'])
                 db.save_message(from_number, context['message'], embeddings)
                 response.message("Your message has been saved to the database.")
+                del user_context[from_number]
             elif message == "2":
                 response.message(MainFoos.ask(from_number, context['message']))
+                del user_context[from_number]
             elif message == "3":
                 response.message(MainFoos.summarize(context['message']))
+                del user_context[from_number]
             elif message == "4":
                 response.message(illm.rephrase_text(context['message']))
+                del user_context[from_number]
+            elif message == "5":
+                response.message("Aborted.")
+                del user_context[from_number]
             else:
-                response.message("Invalid choice. Please select a valid option.")
-
-            del user_context[from_number]
+                response.message(f"Invalid choice. Please select a number representing a valid option:\n{OPTIONS}")
         return str(response)
 
     user_context[from_number] = {'message': message, 'state': 'awaiting_choice'}
-    response.message(
-        "What would you like to do with this message?\n"
-        "1. Save to DB\n"
-        "2. Ask a question\n"
-        "3. Summarize\n"
-        "4. Rephrase"
-    )
+    response.message(f"What would you like to do with this message?\n{OPTIONS}")
     return str(response)
 
 
