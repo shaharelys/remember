@@ -4,26 +4,32 @@ from llm_interface import OpenAIInterface
 from db_interface import DatabaseInterface
 from twilio.rest import Client
 
-from keys import TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, openai_key
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Load sensitive keys from environment variables
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+OPENAI_KEY = os.getenv("OPENAI_KEY")
 
 import openai
 
 app = Flask(__name__)
 
-openai.api_key = openai_key
+openai.api_key = OPENAI_KEY
 
 twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 db_config = {
-    'host': 'localhost',
-    'user': 'root',  # Replace with your MySQL username
-    'password': '',  # Replace with your MySQL password
-    'database': 'messages'
+    'database': 'whatsapp.db'  # SQLite database file
 }
 
-db = DatabaseInterface(db_config["host"], db_config["user"], db_config["password"], db_config["database"])
-illm = OpenAIInterface()
+db = DatabaseInterface(db_config['database'])
 
+illm = OpenAIInterface()
 
 class MainFoos:
     @classmethod
@@ -39,7 +45,7 @@ class MainFoos:
         return illm.generate_response(
             query=query_message,
             context=str([
-                f"message #{i}, from {page['date']}: {page['message']}" 
+                f"message #{i}, from {page['date']}: {page['message']}"
                 for i, page in enumerate(related_pages)
             ])
         )
@@ -58,49 +64,51 @@ class MainFoos:
         return illm.generate_summary(text)
 
 
+user_context = {}
+
+@app.route("/all_messages", methods=["GET"])
+def get_all_message():
+    all_messages = db.get_all_messages()
+    return all_messages
+
+
+
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    # Get the incoming message from WhatsApp
     message = request.form.get("Body")
     from_number = request.form.get("From")
     response = MessagingResponse()
+    if from_number in user_context:
+        context = user_context[from_number]
 
-    # Check for command prefixes
-    if message.lower().startswith("d ") or message.lower().startswith("d\n"):
-        # Save data to DB
-        embeddings = illm.generate_embedding(message)
-        text_to_save = message[2:].strip()
-        db.save_message(from_number, text_to_save, embeddings)
-        response.message("Added this message to my knowledge base")
-    
-    elif message.lower().startswith("a ") or message.lower().startswith("a\n"):
-        # Ask question about saved data
-        question = message[2:].strip()
-        response.message(MainFoos.ask(from_number, question))
-    
-    elif message.lower().startswith("s ") or message.lower().startswith("s\n"):
-        # Summarize text without saving data
-        text_to_summarize = message[2:].strip()
-        response.message(MainFoos.summarize(text_to_summarize))
-    
-    elif message.lower().startswith("r ") or message.lower().startswith("r\n"):
-        # 4. Check grammar and rephrase
-        text_to_rephrase = message[2:].strip()
-        response.message(illm.rephrase_text(text_to_rephrase))
-    
-    else:
-        response_message = (
-            "Please start the conversation with one of the following commands:\n"
-            "- `d <your message>` to save data to the DB\n"
-            "- `a <your question>` to ask a question about saved data\n"
-            "- `s <your text>` to summarize text without saving it\n"
-            "- `r <your text>` to rephrase the text for clarity or grammar correction\n\n"
-            "Example: `d This is some simple line to save into my knowledge!`"
-        )
-        response.message(response_message)        
-    
+        if context['state'] == 'awaiting_choice':
+            if message == "1":
+                embeddings = illm.generate_embedding(context['message'])
+                db.save_message(from_number, context['message'], embeddings)
+                response.message("Your message has been saved to the database.")
+            elif message == "2":
+                response.message(MainFoos.ask(from_number, context['message']))
+            elif message == "3":
+                response.message(MainFoos.summarize(context['message']))
+            elif message == "4":
+                response.message(illm.rephrase_text(context['message']))
+            else:
+                response.message("Invalid choice. Please select a valid option.")
+
+            del user_context[from_number]
+        return str(response)
+
+    user_context[from_number] = {'message': message, 'state': 'awaiting_choice'}
+    response.message(
+        "What would you like to do with this message?\n"
+        "1. Save to DB\n"
+        "2. Ask a question\n"
+        "3. Summarize\n"
+        "4. Rephrase"
+    )
     return str(response)
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=False)
