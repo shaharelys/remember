@@ -1,12 +1,11 @@
 import openai
 import numpy as np
-from keys import openai_key
 
 
 SIMILARITY_THRESHOLD = 0.8
 
 class OpenAIInterface:
-    def __init__(self, api_key: str = openai_key):
+    def __init__(self, api_key: str):
         """Initialize the OpenAI interface with API key."""
         openai.api_key = api_key
         self.embedding_model = "text-embedding-3-small" #"text-embedding-ada-002"
