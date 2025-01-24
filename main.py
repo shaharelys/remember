@@ -1,3 +1,5 @@
+import os
+import openai
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
 from llm_interface import OpenAIInterface
@@ -5,7 +7,6 @@ from db_interface import DatabaseInterface
 from twilio.rest import Client
 
 from dotenv import load_dotenv
-import os
 
 # Load environment variables from .env file
 load_dotenv()
@@ -15,7 +16,6 @@ TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 OPENAI_KEY = os.getenv("OPENAI_KEY")
 
-import openai
 
 app = Flask(__name__)
 

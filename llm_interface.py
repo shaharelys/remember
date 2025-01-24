@@ -2,7 +2,7 @@ import openai
 import numpy as np
 from keys import openai_key
 
-MEMORY_SYSTEM_PROMPT = """You are a helpful assistant with access to previous conversation history. Use the provided context to give natural, conversational responses that incorporate relevant information from past discussions. Maintain a consistent and friendly tone while seamlessly integrating historical context into your responses. The content has Context from previous conversations 'context' and the specific user quesiton 'query'."""
+
 SIMILARITY_THRESHOLD = 0.8
 
 class OpenAIInterface:
@@ -30,11 +30,18 @@ class OpenAIInterface:
     def generate_response(self, query: str, context: str,) -> str:
         """Generate a response using relevant conversation pages as context."""
 
-        prompt = f"""Text: {context}
-
-        Question: {query}
-
-        Please answer the question based only on the provided text."""
+        prompt = f"""
+        You are a helpful assistant with access to previous conversation history. 
+        Use the provided context to give natural, conversational responses that relay on past discussions. 
+        In your answer, include the times of the responses history you rely on. 
+        Content has context: <context>, and query: <query>. 
+        Answer the query based only on the provided context. 
+        \n
+        context: {context}
+        \n
+        query: {query}
+        """
+        # TODO: investigate if that's the best practice for messages list usage
         response = openai.ChatCompletion.create(
             model=self.chat_model,
             messages=[
