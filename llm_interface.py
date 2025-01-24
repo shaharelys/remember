@@ -47,6 +47,8 @@ class OpenAIInterface:
         return response.choices[0].message.content
 
     def is_similar(self, vec1: list[float], vec2: list[float], threshold: float=SIMILARITY_THRESHOLD) -> bool:
+        if vec1 is None or vec2 is None:
+            return False
         array1, array2 = np.array(vec1), np.array(vec2)
         similarity = np.dot(array1, array2)
         return similarity > threshold
@@ -84,3 +86,32 @@ class OpenAIInterface:
         except Exception as e:
             print(f"Error rephrasing text: {e}")
             return None
+
+
+def main():
+    # Retrieve your OpenAI API key from environment variables
+    from keys import openai_key as api_key
+
+    # Initialize the OpenAIInterface with your API key
+    openai_interface = OpenAIInterface(api_key)
+
+    # Test the generate_embedding method
+    text = "Sample text for embedding"
+    embedding = openai_interface.generate_embedding(text)
+    if embedding:
+        print("Embedding generated successfully.")
+    else:
+        print("Failed to generate embedding.")
+
+    # Test the generate_response method
+    query = "What is the capital of France?"
+    context = "This is a geography-related question."
+    response = openai_interface.generate_response(query, context)
+    if response:
+        print("Response generated successfully:")
+        print(response)
+    else:
+        print("Failed to generate response.")
+
+if __name__ == "__main__":
+    main()
