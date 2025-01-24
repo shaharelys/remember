@@ -76,8 +76,8 @@ def get_all_message():
 @app.route("/webhook", methods=["POST"])
 def webhook():
     OPTIONS = (
-        "1. Save this message to your personal knowledge.\n"
-        "2. Use this message as a quesiton about your personal knowledge.\n"
+        "1. Save to your personal knowledge.\n"
+        "2. Quesiton your personal knowledge.\n"
         "3. Summarize this message\n"
         "4. Rephrase this message\n"
         "5. Abort"
@@ -93,7 +93,7 @@ def webhook():
             if message == "1":
                 embeddings = illm.generate_embedding(context['message'])
                 db.save_message(from_number, context['message'], embeddings)
-                response.message("Your message has been saved to the database.")
+                response.message("Your message has been saved to your personal knowledge. You can now ask questions about it in future chats!")
                 del user_context[from_number]
             elif message == "2":
                 response.message(MainFoos.ask(from_number, context['message']))
