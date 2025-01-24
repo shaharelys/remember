@@ -38,7 +38,7 @@ class OpenAIInterface:
         response = openai.ChatCompletion.create(
             model=self.chat_model,
             messages=[
-                {"role": "developer", "content": "You are a helpful assistant with access to previous conversation history. Use the provided context to give natural, conversational responses that relay on past discussions. In your answer, include the times of the responses history you rely on. Content has context: <context>, and query: <query>. Answer the query based only on the provided context."},
+                {"role": "developer", "content": "You are a helpful assistant with access to previous conversation history. Use the provided context to give natural, conversational responses that relay on past discussions. Content has context: <context>, and query: <query>. Answer the query based only on the provided context."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.7
