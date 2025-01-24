@@ -76,10 +76,10 @@ def get_all_message():
 @app.route("/webhook", methods=["POST"])
 def webhook():
     OPTIONS = (
-        "1. Save to DB\n"
-        "2. Ask a question\n"
-        "3. Summarize\n"
-        "4. Rephrase\n"
+        "1. Save this message to your personal knowledge.\n"
+        "2. Use this message as a quesiton about your personal knowledge.\n"
+        "3. Summarize this message\n"
+        "4. Rephrase this message\n"
         "5. Abort"
     )
 
