@@ -132,13 +132,20 @@ def init_telegram_bot():
 ############################################################################################################
 
 
+def run_telegram():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_forever()
+    finally:
+        loop.close()
+
 if __name__ == "__main__":
     telegram_app = init_telegram_bot()
-    
-    def run_telegram():
-        asyncio.run(telegram_app.run_polling())
+    telegram_app.run_polling(allowed_updates=Update.ALL_TYPES)
     
     telegram_thread = Thread(target=run_telegram)
+    telegram_thread.daemon = True  # This will help the thread shut down with the main program
     telegram_thread.start()
     
     app.run(host='0.0.0.0', port=5000, debug=False)
