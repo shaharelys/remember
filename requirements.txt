@@ -3,3 +3,4 @@ numpy
 flask
 twilio
 python-dotenv
+python-telegram-bot

@@ -1,10 +1,12 @@
 import os
 import openai
 from flask import Flask, request
-from twilio.twiml.messaging_response import MessagingResponse
 from llm_interface import OpenAIInterface
 from db_interface import DatabaseInterface
-from twilio.rest import Client
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+import asyncio
+from threading import Thread
 
 from dotenv import load_dotenv
 
@@ -15,13 +17,12 @@ load_dotenv()
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 OPENAI_KEY = os.getenv("OPENAI_KEY")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 
 app = Flask(__name__)
 
 openai.api_key = OPENAI_KEY
-
-twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 db_config = {
     'database': 'whatsapp.db'  # SQLite database file
@@ -73,49 +74,71 @@ def get_all_message():
 
 
 
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    OPTIONS = (
-        "1. Save to your personal knowledge.\n"
-        "2. Quesiton your personal knowledge.\n"
-        "3. Summarize this message\n"
-        "4. Rephrase this message\n"
-        "5. Abort"
-    )
+# @app.route("/webhook", methods=["POST"])
+# def webhook():
+#     OPTIONS = (
+#         "1. Save to your personal knowledge.\n"
+#         "2. Quesiton your personal knowledge.\n"
+#         "3. Summarize this message\n"
+#         "4. Rephrase this message\n"
+#         "5. Abort"
+#     )
 
-    message = request.form.get("Body")
-    from_number = request.form.get("From")
-    response = MessagingResponse()
-    if from_number in user_context:
-        context = user_context[from_number]
+#     message = request.form.get("Body")
+#     from_number = request.form.get("From")
+#     response = MessagingResponse()
+#     if from_number in user_context:
+#         context = user_context[from_number]
 
-        if context['state'] == 'awaiting_choice':
-            if message == "1":
-                embeddings = illm.generate_embedding(context['message'])
-                db.save_message(from_number, context['message'], embeddings)
-                response.message("Your message has been saved to your personal knowledge. You can now ask questions about it in future chats!")
-                del user_context[from_number]
-            elif message == "2":
-                response.message(MainFoos.ask(from_number, context['message']))
-                del user_context[from_number]
-            elif message == "3":
-                response.message(MainFoos.summarize(context['message']))
-                del user_context[from_number]
-            elif message == "4":
-                response.message(illm.rephrase_text(context['message']))
-                del user_context[from_number]
-            elif message == "5":
-                response.message("Aborted.")
-                del user_context[from_number]
-            else:
-                response.message(f"Invalid choice. Please select a number representing a valid option:\n{OPTIONS}")
-        return str(response)
+#         if context['state'] == 'awaiting_choice':
+#             if message == "1":
+#                 embeddings = illm.generate_embedding(context['message'])
+#                 db.save_message(from_number, context['message'], embeddings)
+#                 response.message("Your message has been saved to your personal knowledge. You can now ask questions about it in future chats!")
+#                 del user_context[from_number]
+#             elif message == "2":
+#                 response.message(MainFoos.ask(from_number, context['message']))
+#                 del user_context[from_number]
+#             elif message == "3":
+#                 response.message(MainFoos.summarize(context['message']))
+#                 del user_context[from_number]
+#             elif message == "4":
+#                 response.message(illm.rephrase_text(context['message']))
+#                 del user_context[from_number]
+#             elif message == "5":
+#                 response.message("Aborted.")
+#                 del user_context[from_number]
+#             else:
+#                 response.message(f"Invalid choice. Please select a number representing a valid option:\n{OPTIONS}")
+#         return str(response)
 
-    user_context[from_number] = {'message': message, 'state': 'awaiting_choice'}
-    response.message(f"What would you like to do with this message?\n{OPTIONS}")
-    return str(response)
+#     user_context[from_number] = {'message': message, 'state': 'awaiting_choice'}
+#     response.message(f"What would you like to do with this message?\n{OPTIONS}")
+#     return str(response)
+
+
+############################################################################################################
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text('Hi! I am your memory assistant bot.')
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(f"You said: {update.message.text}")
+
+def init_telegram_bot():
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    return application
+############################################################################################################
 
 
 if __name__ == "__main__":
-    # app.run(debug=True)
+    telegram_app = init_telegram_bot()
+    
+    def run_telegram():
+        asyncio.run(telegram_app.run_polling())
+    
+    telegram_thread = Thread(target=run_telegram)
+    telegram_thread.start()
+    
     app.run(host='0.0.0.0', port=5000, debug=False)
