@@ -1,6 +1,6 @@
 import os
 import openai
-from flask import Flask, request
+from flask import Flask
 from llm_interface import OpenAIInterface
 from db_interface import DatabaseInterface
 from telegram import Update
@@ -35,9 +35,7 @@ illm = OpenAIInterface(api_key=OPENAI_KEY)
 OPTIONS = (
     "1. Save to your personal knowledge.\n"
     "2. Question your personal knowledge.\n"
-    "3. Summarize this message\n"
-    "4. Rephrase this message\n"
-    "5. Abort"
+    "3. Abort"
 )
 
 class MainFoos:
@@ -67,10 +65,6 @@ class MainFoos:
         related_pages = cls.get_related_pages(embeddings, filtered_messages)
         return cls.generate_response(question, related_pages)
 
-    @staticmethod
-    def summarize(text: str) -> str:
-        """Summarize text without saving to the database."""
-        return illm.generate_summary(text)
 
 
 user_context = {}
@@ -79,51 +73,6 @@ user_context = {}
 def get_all_message():
     all_messages = db.get_all_messages()
     return all_messages
-
-
-
-# @app.route("/webhook", methods=["POST"])
-# def webhook():
-#     OPTIONS = (
-#         "1. Save to your personal knowledge.\n"
-#         "2. Quesiton your personal knowledge.\n"
-#         "3. Summarize this message\n"
-#         "4. Rephrase this message\n"
-#         "5. Abort"
-#     )
-
-#     message = request.form.get("Body")
-#     from_number = request.form.get("From")
-#     response = MessagingResponse()
-#     if from_number in user_context:
-#         context = user_context[from_number]
-
-#         if context['state'] == 'awaiting_choice':
-#             if message == "1":
-#                 embeddings = illm.generate_embedding(context['message'])
-#                 db.save_message(from_number, context['message'], embeddings)
-#                 response.message("Your message has been saved to your personal knowledge. You can now ask questions about it in future chats!")
-#                 del user_context[from_number]
-#             elif message == "2":
-#                 response.message(MainFoos.ask(from_number, context['message']))
-#                 del user_context[from_number]
-#             elif message == "3":
-#                 response.message(MainFoos.summarize(context['message']))
-#                 del user_context[from_number]
-#             elif message == "4":
-#                 response.message(illm.rephrase_text(context['message']))
-#                 del user_context[from_number]
-#             elif message == "5":
-#                 response.message("Aborted.")
-#                 del user_context[from_number]
-#             else:
-#                 response.message(f"Invalid choice. Please select a number representing a valid option:\n{OPTIONS}")
-#         return str(response)
-
-#     user_context[from_number] = {'message': message, 'state': 'awaiting_choice'}
-#     response.message(f"What would you like to do with this message?\n{OPTIONS}")
-#     return str(response)
-
 
 ############################################################################################################
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -148,14 +97,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text(response)
                 del user_context[user_id]
             elif message == "3":
-                response = MainFoos.summarize(context_data['message'])
-                await update.message.reply_text(response)
-                del user_context[user_id]
-            elif message == "4":
-                response = illm.rephrase_text(context_data['message'])
-                await update.message.reply_text(response)
-                del user_context[user_id]
-            elif message == "5":
                 await update.message.reply_text("Aborted.")
                 del user_context[user_id]
             else:

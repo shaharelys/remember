@@ -52,37 +52,3 @@ class OpenAIInterface:
         array1, array2 = np.array(vec1), np.array(vec2)
         similarity = np.dot(array1, array2)
         return similarity > threshold
-    
-    def generate_summary(self, text):
-        """Generate summary for the given text using gpt-3.5-turbo."""
-        try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",  # Use gpt-3.5-turbo for summarization
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": f"Please summarize the following text in 2 lines: {text}"}
-                ],
-                max_tokens=150,  # Adjust the summary length as needed
-                temperature=0.5
-            )
-            return response['choices'][0]['message']['content'].strip()
-        except Exception as e:
-            print(f"Error summarizing text: {e}")
-            return None
-        
-    def rephrase_text(self, text):
-        """Rephrase the given text using gpt-3.5-turbo."""
-        try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",  # Use gpt-3.5-turbo for rephrasing
-                messages=[
-                    {"role": "system", "content": "You are a rephrasing assistant."},
-                    {"role": "user", "content": f"Please rephrase the following sentence for better clarity or grammar in his language: {text}"}
-                ],
-                max_tokens=150,
-                temperature=0.7
-            )
-            return response['choices'][0]['message']['content'].strip()
-        except Exception as e:
-            print(f"Error rephrasing text: {e}")
-            return None
