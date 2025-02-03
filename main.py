@@ -122,7 +122,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('Hi! I am your memory assistant bot.')
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"You said: {update.message.text}")
+    await update.message.reply_text(f"You said what?: {update.message.text}")
 
 def init_telegram_bot():
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
