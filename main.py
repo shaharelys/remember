@@ -32,6 +32,14 @@ db = DatabaseInterface(db_config['database'])
 
 illm = OpenAIInterface(api_key=OPENAI_KEY)
 
+OPTIONS = (
+    "1. Save to your personal knowledge.\n"
+    "2. Question your personal knowledge.\n"
+    "3. Summarize this message\n"
+    "4. Rephrase this message\n"
+    "5. Abort"
+)
+
 class MainFoos:
     @classmethod
     def get_related_pages(cls, embeddings: list, sender_pages: list[dict]) -> list[dict]:
@@ -119,10 +127,44 @@ def get_all_message():
 
 ############################################################################################################
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"Received /start command from {update.effective_user.id}")
     await update.message.reply_text('Hi! I am your memory assistant bot.')
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"You said what?: {update.message.text}")
+    user_id = str(update.effective_user.id)
+    message = update.message.text
+    
+    if user_id in user_context:
+        context_data = user_context[user_id]
+        
+        if context_data['state'] == 'awaiting_choice':
+            if message == "1":
+                embeddings = illm.generate_embedding(context_data['message'])
+                db.save_message(user_id, context_data['message'], embeddings)
+                await update.message.reply_text("Your message has been saved to your personal knowledge. You can now ask questions about it in future chats!")
+                del user_context[user_id]
+            elif message == "2":
+                response = MainFoos.ask(user_id, context_data['message'])
+                await update.message.reply_text(response)
+                del user_context[user_id]
+            elif message == "3":
+                response = MainFoos.summarize(context_data['message'])
+                await update.message.reply_text(response)
+                del user_context[user_id]
+            elif message == "4":
+                response = illm.rephrase_text(context_data['message'])
+                await update.message.reply_text(response)
+                del user_context[user_id]
+            elif message == "5":
+                await update.message.reply_text("Aborted.")
+                del user_context[user_id]
+            else:
+                await update.message.reply_text(f"Invalid choice. Please select a number representing a valid option:\n{OPTIONS}")
+            return
+
+    # If we get here, it's a new message
+    user_context[user_id] = {'message': message, 'state': 'awaiting_choice'}
+    await update.message.reply_text(f"What would you like to do with this message?\n{OPTIONS}")
 
 def init_telegram_bot():
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
