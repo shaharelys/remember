@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackQueryHandler
 from datetime import datetime
+from datetime import timedelta
 ###############################
 
 # Load environment variables from .env file
@@ -98,25 +99,74 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
+async def check_idle_time(user_id: str, context: ContextTypes.DEFAULT_TYPE):
+    while user_id in user_states:
+        await asyncio.sleep(60)  # Check every minute
+        
+        if user_id in user_states:
+            current_time = datetime.now()
+            last_activity = user_states[user_id]['last_activity']
+            time_diff = (current_time - last_activity).total_seconds()
+            
+            if time_diff >= 60:  # If 1 minute has passed since last message
+                chat_id = user_states[user_id]['chat_id']
+                message_count = user_states[user_id]['message_count']
+                end_time = user_states[user_id]['start_time'] + timedelta(minutes=15)
+                time_left = (end_time - current_time).total_seconds() / 60
+                
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"You've been inactive for 1 minute.\n"
+                         f"So far, {message_count} messages have been saved to the database.\n"
+                         f"You can continue sending messages or exit now.\n"
+                         f"Session will automatically end at {end_time.strftime('%H:%M:%S')} "
+                         f"({int(time_left)} minutes remaining).",
+                    reply_markup=create_keyboard(True)
+                )
+                
+                # Update last activity to avoid spam
+                user_states[user_id]['last_activity'] = current_time
+
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = str(update.effective_user.id)
+    current_time = datetime.now()
     
     await query.answer()
     
     if query.data == 'save':
-        # Start save mode
         user_states[user_id] = {
             'mode': 'save',
             'chat_id': update.effective_chat.id,
-            'start_time': datetime.now()
+            'start_time': current_time,
+            'last_activity': current_time,
+            'message_count': 0
         }
         
-        # Start the 15-minute timer
+        # Start both timers
         asyncio.create_task(end_save_mode(user_id, context))
+        asyncio.create_task(check_idle_time(user_id, context))
         
         await query.message.reply_text(
-            "Save mode activated!"
+            "Save mode activated! For the next 15 minutes, every message you send will be saved to the database.\n"
+            "Click 'Exit Save Mode' to end the session early.",
+            reply_markup=create_keyboard(True)
+        )
+    
+    elif query.data == 'exit_save':
+        if user_id in user_states:
+            message_count = user_states[user_id]['message_count']
+            del user_states[user_id]
+            await query.message.reply_text(
+                f"Save mode ended. {message_count} messages were saved.\n"
+                "Regular mode restored.",
+                reply_markup=create_keyboard(False)
+            )
+    
+    elif query.data == 'ask':
+        await query.message.reply_text(
+            f"Ask button pressed at {current_time.strftime('%Y-%m-%d %H:%M:%S')}",
+            reply_markup=create_keyboard(False)
         )
 
 # async def handle_message2(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -154,6 +204,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id in user_states and user_states[user_id]['mode'] == 'save':
         embeddings = illm.generate_embedding(message_text)
         db.save_message(user_id, message_text, embeddings)
+        
+        # Update message count and last activity time
+        user_states[user_id]['message_count'] += 1
+        user_states[user_id]['last_activity'] = datetime.now()
+        
+        await update.message.reply_text(
+            "✅ Message saved to database!",
+            reply_markup=create_keyboard(True)
+        )
     else:
         reply_markup = create_keyboard()
         await update.message.reply_text(
