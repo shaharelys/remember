@@ -116,8 +116,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         asyncio.create_task(end_save_mode(user_id, context))
         
         await query.message.reply_text(
-            "Save mode activated!",
-            reply_markup=create_keyboard(True)
+            "Save mode activated!"
         )
 
 # async def handle_message2(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -155,10 +154,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id in user_states and user_states[user_id]['mode'] == 'save':
         embeddings = illm.generate_embedding(message_text)
         db.save_message(user_id, message_text, embeddings)
-        await update.message.reply_text(
-            "✅ Message saved to database!",
-            reply_markup=create_keyboard(True)
-        )
     else:
         reply_markup = create_keyboard()
         await update.message.reply_text(
