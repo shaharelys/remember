@@ -46,6 +46,8 @@ OPTIONS = (
     "3. Abort"
 )
 
+user_states = {}
+
 class MainFoos:
     @classmethod
     def get_related_pages(cls, embeddings: list, sender_pages: list[dict]) -> list[dict]:
@@ -98,21 +100,39 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    user_id = str(update.effective_user.id)
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     await query.answer()
     
     if query.data == 'save':
+        user_states[user_id] = {
+            'mode': 'save',
+            'chat_id': update.effective_chat.id,
+            'start_time': datetime.now()
+        }
+        
+        asyncio.create_task(end_save_mode(user_id, context))
+        
         await query.message.reply_text(
-            f"Save button pressed at {current_time}",
-            reply_markup=create_keyboard()
+            "Save mode activated! For the next 15 minutes, every message you send will be saved to the database.\n"
+            "Click 'Exit Save Mode' to end the session early.",
+            reply_markup=create_keyboard(True)
         )
+    
+    elif query.data == 'exit_save':
+        if user_id in user_states:
+            del user_states[user_id]
+            await query.message.reply_text(
+                "Save mode ended. Regular mode restored.",
+                reply_markup=create_keyboard(False)
+            )
+    
     elif query.data == 'ask':
         await query.message.reply_text(
             f"Ask button pressed at {current_time}",
-            reply_markup=create_keyboard()
+            reply_markup=create_keyboard(False)
         )
-
 
 
 # async def handle_message2(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -144,11 +164,22 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #     await update.message.reply_text(f"What would you like to do with this message?\n{OPTIONS}")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    reply_markup = create_keyboard()
-    await update.message.reply_text(
-        'Choose an option:',
-        reply_markup=reply_markup
-    )
+    user_id = str(update.effective_user.id)
+    message_text = update.message.text
+    
+    if user_id in user_states and user_states[user_id]['mode'] == 'save':
+        embeddings = illm.generate_embedding(message_text)
+        db.save_message(user_id, message_text, embeddings)
+        await update.message.reply_text(
+            "✅ Message saved to database!",
+            reply_markup=create_keyboard(True)
+        )
+    else:
+        reply_markup = create_keyboard()
+        await update.message.reply_text(
+            'Choose an option:',
+            reply_markup=reply_markup
+        )
 
 
 
@@ -179,14 +210,29 @@ def run_telegram():
         loop.close()
 
 
-def create_keyboard():
-    keyboard = [
-        [
-            InlineKeyboardButton("Save Text", callback_data='save'),
-            InlineKeyboardButton("Ask Question", callback_data='ask')
+def create_keyboard(in_save_mode=False):
+    if in_save_mode:
+        keyboard = [[InlineKeyboardButton("Exit Save Mode", callback_data='exit_save')]]
+    else:
+        keyboard = [
+            [
+                InlineKeyboardButton("Save Text", callback_data='save'),
+                InlineKeyboardButton("Ask Question", callback_data='ask')
+            ]
         ]
-    ]
     return InlineKeyboardMarkup(keyboard)
+
+
+async def end_save_mode(user_id: str, context: ContextTypes.DEFAULT_TYPE):
+    if user_id in user_states:
+        chat_id = user_states[user_id]['chat_id']
+        del user_states[user_id]
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="Save mode has ended. Your 15-minute session is over.",
+            reply_markup=create_keyboard(False)
+        )
+
 
 
 if __name__ == "__main__":
