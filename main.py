@@ -101,39 +101,24 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = str(update.effective_user.id)
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     await query.answer()
     
     if query.data == 'save':
+        # Start save mode
         user_states[user_id] = {
             'mode': 'save',
             'chat_id': update.effective_chat.id,
             'start_time': datetime.now()
         }
         
+        # Start the 15-minute timer
         asyncio.create_task(end_save_mode(user_id, context))
         
         await query.message.reply_text(
-            "Save mode activated! For the next 15 minutes, every message you send will be saved to the database.\n"
-            "Click 'Exit Save Mode' to end the session early.",
+            "Save mode activated!",
             reply_markup=create_keyboard(True)
         )
-    
-    elif query.data == 'exit_save':
-        if user_id in user_states:
-            del user_states[user_id]
-            await query.message.reply_text(
-                "Save mode ended. Regular mode restored.",
-                reply_markup=create_keyboard(False)
-            )
-    
-    elif query.data == 'ask':
-        await query.message.reply_text(
-            f"Ask button pressed at {current_time}",
-            reply_markup=create_keyboard(False)
-        )
-
 
 # async def handle_message2(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #     user_id = str(update.effective_user.id)
@@ -224,6 +209,9 @@ def create_keyboard(in_save_mode=False):
 
 
 async def end_save_mode(user_id: str, context: ContextTypes.DEFAULT_TYPE):
+    # Wait for 15 minutes
+    await asyncio.sleep(15 * 60)  # 15 minutes in seconds
+    
     if user_id in user_states:
         chat_id = user_states[user_id]['chat_id']
         del user_states[user_id]
