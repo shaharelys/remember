@@ -11,13 +11,6 @@ from threading import Thread
 from dotenv import load_dotenv
 
 
-
-######## just for test ########
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CallbackQueryHandler
-from datetime import datetime
-###############################
-
 # Load environment variables from .env file
 load_dotenv()
 
@@ -73,8 +66,6 @@ class MainFoos:
         related_pages = cls.get_related_pages(embeddings, filtered_messages)
         return cls.generate_response(question, related_pages)
 
-
-
 user_context = {}
 
 @app.route("/all_messages", methods=["GET"])
@@ -82,93 +73,43 @@ def get_all_message():
     all_messages = db.get_all_messages()
     return all_messages
 
-############################################################################################################
-# async def start_command2(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     print(f"Received /start command from {update.effective_user.id}")
-#     await update.message.reply_text('Hi! I am your memory assistant bot.')
-
-# Replace your existing start_command with:
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"Received /start command from {update.effective_user.id}")
-    reply_markup = create_keyboard()
-    await update.message.reply_text(
-        'Hi! I am your memory assistant bot. Choose an option:',
-        reply_markup=reply_markup
-    )
-
-async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    await query.answer()
-    
-    if query.data == 'save':
-        await query.message.reply_text(
-            f"Save button pressed at {current_time}",
-            reply_markup=create_keyboard()
-        )
-    elif query.data == 'ask':
-        await query.message.reply_text(
-            f"Ask button pressed at {current_time}",
-            reply_markup=create_keyboard()
-        )
-
-
-
-# async def handle_message2(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     user_id = str(update.effective_user.id)
-#     message = update.message.text
-    
-#     if user_id in user_context:
-#         context_data = user_context[user_id]
-        
-#         if context_data['state'] == 'awaiting_choice':
-#             if message == "1":
-#                 embeddings = illm.generate_embedding(context_data['message'])
-#                 db.save_message(user_id, context_data['message'], embeddings)
-#                 await update.message.reply_text("Your message has been saved to your personal knowledge. You can now ask questions about it in future chats!")
-#                 del user_context[user_id]
-#             elif message == "2":
-#                 response = MainFoos.ask(user_id, context_data['message'])
-#                 await update.message.reply_text(response)
-#                 del user_context[user_id]
-#             elif message == "3":
-#                 await update.message.reply_text("Aborted.")
-#                 del user_context[user_id]
-#             else:
-#                 await update.message.reply_text(f"Invalid choice. Please select a number representing a valid option:\n{OPTIONS}")
-#             return
-
-#     # If we get here, it's a new message
-#     user_context[user_id] = {'message': message, 'state': 'awaiting_choice'}
-#     await update.message.reply_text(f"What would you like to do with this message?\n{OPTIONS}")
+    await update.message.reply_text('Hi! I am your memory assistant bot.')
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    reply_markup = create_keyboard()
-    await update.message.reply_text(
-        'Choose an option:',
-        reply_markup=reply_markup
-    )
+    user_id = str(update.effective_user.id)
+    message = update.message.text
+    
+    if user_id in user_context:
+        context_data = user_context[user_id]
+        
+        if context_data['state'] == 'awaiting_choice':
+            if message == "1":
+                embeddings = illm.generate_embedding(context_data['message'])
+                db.save_message(user_id, context_data['message'], embeddings)
+                await update.message.reply_text("Your message has been saved to your personal knowledge. You can now ask questions about it in future chats!")
+                del user_context[user_id]
+            elif message == "2":
+                response = MainFoos.ask(user_id, context_data['message'])
+                await update.message.reply_text(response)
+                del user_context[user_id]
+            elif message == "3":
+                await update.message.reply_text("Aborted.")
+                del user_context[user_id]
+            else:
+                await update.message.reply_text(f"Invalid choice. Please select a number representing a valid option:\n{OPTIONS}")
+            return
 
-
-
-# def init_telegram_bot2():
-#     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-#     application.add_handler(CommandHandler("start", start_command))
-#     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-#     return application
+    # If we get here, it's a new message
+    user_context[user_id] = {'message': message, 'state': 'awaiting_choice'}
+    await update.message.reply_text(f"What would you like to do with this message?\n{OPTIONS}")
 
 def init_telegram_bot():
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-    
-    # Add handlers
     application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(CallbackQueryHandler(button_callback))  # Add this line
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
     return application
-############################################################################################################
-
 
 def run_telegram():
     loop = asyncio.new_event_loop()
@@ -177,17 +118,6 @@ def run_telegram():
         loop.run_forever()
     finally:
         loop.close()
-
-
-def create_keyboard():
-    keyboard = [
-        [
-            InlineKeyboardButton("Save Text", callback_data='save'),
-            InlineKeyboardButton("Ask Question", callback_data='ask')
-        ]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
 
 if __name__ == "__main__":
     telegram_app = init_telegram_bot()
